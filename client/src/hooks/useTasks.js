@@ -5,13 +5,17 @@ import * as api from '../api.js';
 const EMPTY_STATS = { total: 0, completed: 0, active: 0, overdue: 0, dueToday: 0 };
 
 /**
- * Owns all task state and every call to the API.
+ * Owns all task state and every call to the backend.
  *
- * The server is the source of truth: mutations post and then reload the list,
- * except for the completion toggle, which updates locally first so the checkbox
- * responds instantly and rolls back if the request fails.
+ * The whole list is fetched once per search term and the UI derives its views,
+ * groups and ordering from it — switching between Today and Upcoming is then
+ * instant rather than a round trip.
+ *
+ * The backend stays the source of truth: mutations write and then reload,
+ * except the completion toggle, which applies locally first so the checkbox
+ * responds immediately and rolls back if the write fails.
  */
-export function useTasks({ filter, query, sort }) {
+export function useTasks({ query }) {
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState(EMPTY_STATS);
   const [loading, setLoading] = useState(true);
@@ -26,7 +30,7 @@ export function useTasks({ filter, query, sort }) {
       const id = ++requestId.current;
       if (!quiet) setLoading(true);
       try {
-        const data = await api.listTasks({ filter, q: query, sort });
+        const data = await api.listTasks({ q: query });
         if (id !== requestId.current) return;
         setTasks(data.tasks);
         setStats(data.stats);
@@ -37,7 +41,7 @@ export function useTasks({ filter, query, sort }) {
         if (id === requestId.current) setLoading(false);
       }
     },
-    [filter, query, sort]
+    [query]
   );
 
   useEffect(() => {
@@ -98,7 +102,6 @@ export function useTasks({ filter, query, sort }) {
     [run, tasks, withBusy]
   );
 
-  const completeAll = useCallback((completed) => run(() => api.completeAll(completed)), [run]);
   const clearCompleted = useCallback(() => run(() => api.clearCompleted()), [run]);
 
   return {
@@ -111,7 +114,6 @@ export function useTasks({ filter, query, sort }) {
     editTask,
     removeTask,
     toggleTask,
-    completeAll,
     clearCompleted,
     refresh,
     dismissError: () => setError(null)

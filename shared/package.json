@@ -8,5 +8,8 @@
     "./model.js": "./model.js"
   },
   "license": "MIT",
-  "private": true
+  "private": true,
+  "scripts": {
+    "test": "node --test"
+  }
 }

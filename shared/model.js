@@ -211,3 +211,119 @@ export function sanitiseTasks(value) {
     })
     .filter(Boolean);
 }
+
+/* ------------------------------------------------------------------ *
+ * Quick add
+ *
+ * Lets one line of typing carry a due date and a priority the way
+ * Todoist and TickTick do: "Email Sam tomorrow p1" becomes a task titled
+ * "Email Sam", due tomorrow, high priority. Pure and date-injectable, so
+ * every phrase it claims to understand is covered by a test.
+ * ------------------------------------------------------------------ */
+
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday'
+];
+
+// p1 is the most urgent, matching the convention these apps share.
+const PRIORITY_BY_LEVEL = { 1: 'high', 2: 'normal', 3: 'low', 4: 'low' };
+
+/** Local calendar date as YYYY-MM-DD (never UTC, which can shift the day). */
+export function toISODate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/** The soonest future occurrence of a weekday; naming today rolls a week on. */
+function nextWeekday(from, target) {
+  const delta = (target - from.getDay() + 7) % 7;
+  return addDays(from, delta === 0 ? 7 : delta);
+}
+
+/**
+ * That weekday in *next* week — what "next friday" means to people, and a
+ * different day from bare "friday" whenever this week's one is still ahead.
+ * Weeks start on Monday.
+ */
+function weekdayNextWeek(from, target) {
+  const daysToNextMonday = (8 - from.getDay()) % 7 || 7;
+  const monday = addDays(from, daysToNextMonday);
+  return addDays(monday, (target + 6) % 7);
+}
+
+/**
+ * Pull a date and priority out of free text.
+ *
+ * Returns the remaining title plus whatever was recognised, and reports which
+ * phrases matched so the UI can show the user what it understood.
+ */
+export function parseQuickAdd(input, { today = new Date() } = {}) {
+  let text = String(input ?? '');
+  let priority = null;
+  let dueDate = null;
+  const matched = [];
+
+  const take = (pattern, handler) => {
+    if (dueDate && pattern.source.includes('day')) return;
+    text = text.replace(pattern, (...args) => {
+      const result = handler(...args);
+      if (result === null) return args[0];
+      matched.push(args[0].trim());
+      return ' ';
+    });
+  };
+
+  // Priority first: "p1".."p4" as a standalone word.
+  take(/(?:^|\s)p([1-4])(?=\s|$)/i, (_match, level) => {
+    if (priority) return null;
+    priority = PRIORITY_BY_LEVEL[level];
+    return ' ';
+  });
+
+  // Dates, longest phrasings first so "next monday" wins over "monday".
+  const dateRules = [
+    [/(?:^|\s)(\d{4}-\d{2}-\d{2})(?=\s|$)/, (_m, iso) => (isValidDate(iso) ? iso : null)],
+    [/(?:^|\s)in (\d{1,3}) (day|days|week|weeks)(?=\s|$)/i, (_m, count, unit) => {
+      const days = Number(count) * (unit.toLowerCase().startsWith('week') ? 7 : 1);
+      return toISODate(addDays(today, days));
+    }],
+    [/(?:^|\s)next week(?=\s|$)/i, () => toISODate(addDays(today, 7))],
+    [/(?:^|\s)next (sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?=\s|$)/i,
+      (_m, day) => toISODate(weekdayNextWeek(today, WEEKDAYS.indexOf(day.toLowerCase())))],
+    [/(?:^|\s)(today|tonight)(?=\s|$)/i, () => toISODate(today)],
+    [/(?:^|\s)tomorrow(?=\s|$)/i, () => toISODate(addDays(today, 1))],
+    [/(?:^|\s)(sunday|monday|tuesday|wednesday|thursday|friday|saturday)(?=\s|$)/i,
+      (_m, day) => toISODate(nextWeekday(today, WEEKDAYS.indexOf(day.toLowerCase())))]
+  ];
+
+  for (const [pattern, handler] of dateRules) {
+    if (dueDate) break;
+    take(pattern, (...args) => {
+      const result = handler(...args);
+      if (result === null) return null;
+      dueDate = result;
+      return ' ';
+    });
+  }
+
+  return {
+    title: normaliseTitle(text),
+    priority,
+    dueDate,
+    matched
+  };
+}
