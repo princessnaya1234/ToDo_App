@@ -4,6 +4,7 @@ import StatsBar from './components/StatsBar.jsx';
 import TaskComposer from './components/TaskComposer.jsx';
 import TaskList from './components/TaskList.jsx';
 import Toolbar from './components/Toolbar.jsx';
+import { STANDALONE } from './api.js';
 import { useTasks } from './hooks/useTasks.js';
 import { useDebounced } from './hooks/useDebounced.js';
 
@@ -127,7 +128,10 @@ export default function App() {
           </button>
         </footer>
 
-        <p className="hint">Double-click a task to edit it.</p>
+        <p className="hint">
+          Double-click a task to edit it.
+          {STANDALONE && ' Your tasks are saved in this browser, and are visible only to you.'}
+        </p>
       </main>
     </div>
   );

@@ -36,23 +36,25 @@ the browser only ever talks to one origin.
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Runs the server test suite (model + API). |
+| `npm test` | Runs all 61 tests (server + browser backend). |
 | `npm run build` | Builds the production frontend into `client/dist`. |
+| `npm run build:pages` | Builds the browser-only version for GitHub Pages. |
 | `npm start` | Runs the API alone (serve `client/dist` with any static host). |
 
 ## Project layout
 
 ```
+shared/model.js         Task rules used by the server AND the browser build
 client/                 React frontend (Vite)
   src/App.jsx           Screen composition and app-level state
-  src/api.js            Typed wrapper around the REST API
+  src/api.js            Picks a backend: HTTP, or browser-only for Pages
+  src/backends/         http.js (REST API) and local.js (localStorage)
   src/hooks/useTasks.js All task state and server calls
   src/components/       Composer, toolbar, list, item, stats
   src/lib/dates.js      Due-date formatting
   src/styles.css        Design tokens and component styles
 server/                 Express REST API
-  src/app.js            Routes and error handling
-  src/model.js          Validation and task logic (pure, unit tested)
+  src/app.js            Routes, error handling, static frontend in production
   src/store.js          JSON-file repository (atomic writes) + in-memory store
   test/                 Model and HTTP tests
 scripts/dev.js          Runs both services with one command
@@ -110,8 +112,17 @@ curl -X POST localhost:4000/api/tasks \
 
 ## Deploying (getting a public URL)
 
-In production the Express server serves the built React app as well as the API,
-so the whole thing is **one service on one URL** — no separate frontend host, no
+There are two ways to publish this app, and they differ in where tasks are kept:
+
+| | GitHub Pages | Render |
+| --- | --- | --- |
+| Runs the API | No | Yes |
+| Tasks stored | In each visitor's browser | On the server, shared by everyone |
+| Cost | Free | Free tier |
+| Downside | Lists are per-person | Sleeps when idle; free disk resets |
+
+For the full-stack option the Express server serves the built React app as well
+as the API, so it is **one service on one URL** — no separate frontend host, no
 CORS setup.
 
 Test that locally before deploying:
@@ -121,7 +132,37 @@ npm run build     # builds the frontend into client/dist
 npm start         # serves app + API together on http://localhost:4000
 ```
 
-### Render (free)
+### GitHub Pages (free, no server)
+
+GitHub Pages serves static files only — it cannot run the Express API. So the
+Pages build swaps the HTTP backend for one that keeps tasks in the visitor's own
+browser (`client/src/backends/local.js`). Both backends implement the same
+contract and share the same task rules from `shared/model.js`, so the app behaves
+identically; the difference is where tasks live.
+
+- Each visitor gets their own list, private to their browser, and it persists.
+- No cold starts, no sleeping, nothing to pay for.
+- Tasks are *not* shared between people or devices. If you need one shared list,
+  deploy the full-stack version instead.
+
+To turn it on:
+
+1. Merge this to `main`.
+2. On GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Push to `main`. The workflow in `.github/workflows/deploy-pages.yml` runs the
+   tests, builds, and publishes to `https://<username>.github.io/ToDo_App/`.
+
+Renaming the repository? Update `VITE_BASE` in `client/.env.pages` to match, or
+the deployed page will request its assets from the wrong path.
+
+Build it locally to check it first:
+
+```bash
+npm run build:pages
+npx serve client/dist    # or any static file server
+```
+
+### Render (free, with the real API)
 
 `render.yaml` in this repo is a Render Blueprint, so Render configures itself:
 
@@ -160,6 +201,11 @@ already defines the interface a database version would implement.
 npm test
 ```
 
-46 tests cover the model (validation, filtering, sorting, stats, stored-data repair)
-and the HTTP layer end to end (status codes, validation errors, 404s, bulk routes),
-running the real Express app against an in-memory store.
+61 tests, run across both workspaces:
+
+- **Server (46)** — task rules (validation, filtering, sorting, stats,
+  stored-data repair) and the HTTP layer end to end (status codes, validation
+  errors, 404s, bulk routes) against the real Express app.
+- **Client (15)** — the browser-only backend, asserting it honours the same
+  contract as the API, including rejections, 404s and surviving unusable
+  storage.

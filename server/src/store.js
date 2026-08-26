@@ -8,7 +8,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
-import { sanitiseTasks } from './model.js';
+import { sanitiseTasks } from 'todo-shared/model.js';
 
 export function createStore(filePath) {
   let cache = null;
