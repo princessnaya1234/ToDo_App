@@ -24,7 +24,7 @@ import {
   stats,
   validateNewTask,
   validateTaskUpdate
-} from './model.js';
+} from 'todo-shared/model.js';
 
 const asyncRoute = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 

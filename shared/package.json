@@ -1,0 +1,12 @@
+{
+  "name": "todo-shared",
+  "version": "1.0.0",
+  "description": "Task rules shared by the server and the browser-only build.",
+  "type": "module",
+  "main": "model.js",
+  "exports": {
+    "./model.js": "./model.js"
+  },
+  "license": "MIT",
+  "private": true
+}

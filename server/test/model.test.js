@@ -13,7 +13,7 @@ import {
   stats,
   validateNewTask,
   validateTaskUpdate
-} from '../src/model.js';
+} from 'todo-shared/model.js';
 
 const make = (title, options = {}) => validateNewTask({ title, ...options }).task;
 

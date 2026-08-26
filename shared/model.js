@@ -1,9 +1,19 @@
 /**
- * Pure task logic shared by every route handler: validation, mutation and
- * querying over plain data. No Express, no filesystem — so it unit tests
- * directly and the HTTP layer stays a thin translation of requests.
+ * Pure task logic: validation, mutation and querying over plain data.
+ *
+ * No Express, no filesystem, no DOM — which is what lets the API server and the
+ * browser-only build enforce identical rules instead of drifting apart.
  */
-import { randomUUID } from 'node:crypto';
+
+/**
+ * Web Crypto is available in browsers (on https and localhost) and in Node 19+,
+ * so the same id generator works on both sides. The fallback covers older or
+ * insecure contexts where randomUUID is missing.
+ */
+function randomUUID() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 export const PRIORITIES = ['low', 'normal', 'high'];
 const PRIORITY_RANK = { high: 0, normal: 1, low: 2 };
