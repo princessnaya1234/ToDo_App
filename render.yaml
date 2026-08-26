@@ -1,0 +1,18 @@
+# Render Blueprint: deploys the whole app as one web service.
+# The build compiles the React frontend; the Express server then serves both
+# the API and those built files, so everything lives on a single URL.
+services:
+  - type: web
+    name: todo-app
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      # Tasks are stored in this file. On the free plan the disk is wiped on
+      # every restart and deploy, so tasks reset periodically. Attach a Render
+      # persistent disk (paid) or move to a database to keep them for good.
+      - key: TASKS_FILE
+        value: /opt/render/project/src/server/data/tasks.json
