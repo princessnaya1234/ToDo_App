@@ -36,7 +36,7 @@ the browser only ever talks to one origin.
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Runs all 61 tests (server + browser backend). |
+| `npm test` | Runs all 94 tests across the three workspaces. |
 | `npm run build` | Builds the production frontend into `client/dist`. |
 | `npm run build:pages` | Builds the browser-only version for GitHub Pages. |
 | `npm start` | Runs the API alone (serve `client/dist` with any static host). |
@@ -44,13 +44,14 @@ the browser only ever talks to one origin.
 ## Project layout
 
 ```
-shared/model.js         Task rules used by the server AND the browser build
+shared/model.js         Task rules + quick-add parsing, used by both builds
 client/                 React frontend (Vite)
   src/App.jsx           Screen composition and app-level state
   src/api.js            Picks a backend: HTTP, or browser-only for Pages
   src/backends/         http.js (REST API) and local.js (localStorage)
   src/hooks/useTasks.js All task state and server calls
-  src/components/       Composer, toolbar, list, item, stats
+  src/components/       Sidebar, quick add, task row, empty state
+  src/lib/grouping.js   Views and the date sections the list is built from
   src/lib/dates.js      Due-date formatting
   src/styles.css        Design tokens and component styles
 server/                 Express REST API
@@ -201,11 +202,12 @@ already defines the interface a database version would implement.
 npm test
 ```
 
-61 tests, run across both workspaces:
+94 tests, run across all three workspaces:
 
+- **Shared (25)** — the quick-add parser: every date phrase and priority token it
+  claims to understand, with the clock injected so results are deterministic.
 - **Server (46)** — task rules (validation, filtering, sorting, stats,
   stored-data repair) and the HTTP layer end to end (status codes, validation
   errors, 404s, bulk routes) against the real Express app.
-- **Client (15)** — the browser-only backend, asserting it honours the same
-  contract as the API, including rejections, 404s and surviving unusable
-  storage.
+- **Client (23)** — the browser-only backend honouring the same contract as the
+  API, and the view/section grouping that shapes the list.
