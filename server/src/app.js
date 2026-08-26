@@ -10,6 +10,9 @@
  *   POST   /api/tasks/complete-all   { completed: boolean }
  *   POST   /api/tasks/clear-completed
  */
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 import express from 'express';
 import cors from 'cors';
 
@@ -29,7 +32,7 @@ function fail(res, status, message, details) {
   return res.status(status).json({ error: { message, ...(details ? { details } : {}) } });
 }
 
-export function createApp({ store }) {
+export function createApp({ store, clientDir = null }) {
   const app = express();
 
   app.use(cors());
@@ -124,6 +127,14 @@ export function createApp({ store }) {
   app.use('/api', api);
 
   app.use('/api', (req, res) => fail(res, 404, `No API route for ${req.method} ${req.originalUrl}.`));
+
+  // In production the built React app is served from this same server, so the
+  // whole thing is one deployable service on one URL.
+  if (clientDir && existsSync(join(clientDir, 'index.html'))) {
+    app.use(express.static(clientDir));
+    // Any non-API path falls through to index.html so client-side routing works.
+    app.get(/.*/, (req, res) => res.sendFile(join(clientDir, 'index.html')));
+  }
 
   // eslint-disable-next-line no-unused-vars -- Express identifies error handlers by arity.
   app.use((error, req, res, next) => {

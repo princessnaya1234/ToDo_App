@@ -14,5 +14,8 @@
     "build": "npm run build --workspace client",
     "test": "npm test --workspace server"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
 }

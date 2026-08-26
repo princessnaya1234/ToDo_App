@@ -108,12 +108,50 @@ curl -X POST localhost:4000/api/tasks \
   -d '{"title":"Renew passport","priority":"high","dueDate":"2026-08-20"}'
 ```
 
+## Deploying (getting a public URL)
+
+In production the Express server serves the built React app as well as the API,
+so the whole thing is **one service on one URL** — no separate frontend host, no
+CORS setup.
+
+Test that locally before deploying:
+
+```bash
+npm run build     # builds the frontend into client/dist
+npm start         # serves app + API together on http://localhost:4000
+```
+
+### Render (free)
+
+`render.yaml` in this repo is a Render Blueprint, so Render configures itself:
+
+1. Sign up at [render.com](https://render.com) with your GitHub account.
+2. **New → Blueprint**, pick this repository, click **Apply**.
+3. Wait for the first build (2–5 minutes). Render gives you a public address like
+   `https://todo-app-xxxx.onrender.com` — that is the link to share.
+
+Deploying by hand instead of via the blueprint? Use these settings:
+
+| Setting | Value |
+| --- | --- |
+| Build command | `npm install --include=dev && npm run build` |
+| Start command | `npm start` |
+| Environment | Node |
+
+**Storage on free hosting:** tasks live in a JSON file, and free plans wipe the
+disk on restart and on every deploy, so tasks reset from time to time. Free
+services also sleep after ~15 minutes idle, making the next visit slow to load.
+For tasks that persist, attach a persistent disk (paid) or move storage to a
+database — `server/src/store.js` is the only file that touches storage, and it
+already defines the interface a database version would implement.
+
 ## Configuration
 
 | Variable | Default | Used by |
 | --- | --- | --- |
 | `PORT` | `4000` | API listen port. |
 | `TASKS_FILE` | `server/data/tasks.json` | Where tasks are stored. |
+| `CLIENT_DIR` | `client/dist` | Built frontend served in production. |
 | `API_URL` | `http://localhost:4000` | Backend the Vite dev server proxies to. |
 
 ## Tests
